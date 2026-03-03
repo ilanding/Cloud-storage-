@@ -6,87 +6,169 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 let sessions = {};
 let albums = [];
 
-bot.start((ctx) => ctx.reply("Bot Ready 🚀"));
+// START
+bot.start((ctx) => {
+  ctx.reply("🚀 Festival Cloud Bot Ready");
+});
 
-// Album Start
+// CREATE ALBUM
 bot.command("album", async (ctx) => {
-  const name = ctx.message.text.split(" ").slice(1).join(" ");
-  if (!name) return ctx.reply("Usage: /album holi 2026");
+  try {
+    const name = ctx.message.text.split(" ").slice(1).join(" ");
+    if (!name) return ctx.reply("Usage: /album name");
 
-  sessions[ctx.from.id] = { name, files: [] };
-  await ctx.reply("Album started. Send photos then /close");
+    sessions[ctx.from.id] = { name, files: [] };
+    await ctx.reply("📂 Album started. Send photos then /close");
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-// Receive Photo
+// RECEIVE PHOTO
 bot.on("photo", async (ctx) => {
-  const session = sessions[ctx.from.id];
-  if (!session) return;
+  try {
+    const session = sessions[ctx.from.id];
+    if (!session) return;
 
-  const fileId = ctx.message.photo.pop().file_id;
-  session.files.push(fileId);
+    const fileId = ctx.message.photo.pop().file_id;
 
-  await ctx.reply(`📸 Added (${session.files.length})`);
+    if (session.files.includes(fileId)) {
+      return ctx.reply("⚠ Duplicate photo");
+    }
+
+    session.files.push(fileId);
+    await ctx.reply(`📸 Added (${session.files.length})`);
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-// Close → Preview
+// CLOSE → PREVIEW
 bot.command("close", async (ctx) => {
-  const session = sessions[ctx.from.id];
-  if (!session || session.files.length === 0)
-    return ctx.reply("No active album ❌");
+  try {
+    const session = sessions[ctx.from.id];
+    if (!session || session.files.length === 0)
+      return ctx.reply("❌ No active album");
 
-  await ctx.reply(
-    `📦 Album Preview\n${session.name}\nFiles: ${session.files.length}`,
-    Markup.inlineKeyboard([
-      [Markup.button.callback("✅ Save Album", "save_album")],
-      [Markup.button.callback("❌ Cancel", "cancel_album")]
-    ])
-  );
+    await ctx.reply(
+      `📦 Preview\n${session.name}\nFiles: ${session.files.length}`,
+      Markup.inlineKeyboard([
+        [Markup.button.callback("✅ Save", "save_album")],
+        [Markup.button.callback("❌ Cancel", "cancel_album")]
+      ])
+    );
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-// Save
+// SAVE
 bot.action("save_album", async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
 
-  const session = sessions[ctx.from.id];
-  if (!session) return ctx.reply("Session expired ❌");
+    const session = sessions[ctx.from.id];
+    if (!session) return ctx.reply("❌ Session expired");
 
-  const media = session.files.map(id => ({
-    type: "photo",
-    media: id
-  }));
+    const media = session.files.map((id) => ({
+      type: "photo",
+      media: id
+    }));
 
-  await bot.telegram.sendMediaGroup(process.env.CHANNEL_ID, media);
+    await bot.telegram.sendMediaGroup(process.env.CHANNEL_ID, media);
 
-  albums.push(session);
-  delete sessions[ctx.from.id];
+    albums.push(session);
+    delete sessions[ctx.from.id];
 
-  await ctx.reply("✅ Album Saved");
+    await ctx.reply("✅ Album Saved to Channel");
+  } catch (err) {
+    console.log(err);
+    ctx.reply("⚠ Error while saving");
+  }
 });
 
-// Cancel
+// CANCEL
 bot.action("cancel_album", async (ctx) => {
-  await ctx.answerCbQuery();
-  delete sessions[ctx.from.id];
-  await ctx.reply("❌ Album Cancelled");
+  try {
+    await ctx.answerCbQuery();
+    delete sessions[ctx.from.id];
+    await ctx.reply("❌ Album Cancelled");
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-// Search
+// SEARCH
 bot.command("search", async (ctx) => {
-  const query = ctx.message.text.split(" ").slice(1).join(" ");
-  if (!query) return ctx.reply("Usage: /search holi");
+  try {
+    const query = ctx.message.text.split(" ").slice(1).join(" ");
+    if (!query) return ctx.reply("Usage: /search name");
 
-  const found = albums.find(a =>
-    a.name.toLowerCase().includes(query.toLowerCase())
-  );
+    const found = albums.find((a) =>
+      a.name.toLowerCase().includes(query.toLowerCase())
+    );
 
-  if (!found) return ctx.reply("Album not found ❌");
+    if (!found) return ctx.reply("❌ Album not found");
 
-  const media = found.files.map(id => ({
-    type: "photo",
-    media: id
-  }));
+    const media = found.files.map((id) => ({
+      type: "photo",
+      media: id
+    }));
 
-  await ctx.replyWithMediaGroup(media);
+    await ctx.replyWithMediaGroup(media);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+// LIST ALL ALBUMS
+bot.command("albums", async (ctx) => {
+  try {
+    if (albums.length === 0)
+      return ctx.reply("📂 No albums saved yet");
+
+    let text = "📁 Your Albums:\n\n";
+    albums.forEach((a, i) => {
+      text += `${i + 1}. ${a.name} (${a.files.length} files)\n`;
+    });
+
+    await ctx.reply(text);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+// DELETE
+bot.command("delete", async (ctx) => {
+  try {
+    const name = ctx.message.text.split(" ").slice(1).join(" ");
+    if (!name) return ctx.reply("Usage: /delete name");
+
+    const index = albums.findIndex((a) =>
+      a.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (index === -1) return ctx.reply("❌ Album not found");
+
+    albums.splice(index, 1);
+    await ctx.reply("🗑 Album deleted");
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+// STATS
+bot.command("stats", async (ctx) => {
+  try {
+    let totalPhotos = 0;
+    albums.forEach((a) => (totalPhotos += a.files.length));
+
+    await ctx.reply(
+      `📊 Stats\nAlbums: ${albums.length}\nPhotos: ${totalPhotos}`
+    );
+  } catch (err) {
+    console.log(err);
+  }
 });
 
 bot.launch();
