@@ -1,0 +1,14 @@
+{
+  "name": "festival-bot",
+  "version": "1.0.0",
+  "description": "Telegram Cloud Album Bot",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.12.2",
+    "dotenv": "^16.3.1"
+  }
+}
