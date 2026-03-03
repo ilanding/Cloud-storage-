@@ -1,7 +1,6 @@
 {
   "name": "festival-bot",
   "version": "1.0.0",
-  "description": "Telegram Cloud Album Bot",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
